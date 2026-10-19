@@ -1,57 +1,158 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<title>Focal Length Comparison Tool</title>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%23111'/><rect x='3' y='6' width='26' height='20' fill='none' stroke='%2338f' stroke-width='3'/><rect x='10' y='12' width='12' height='8' fill='none' stroke='%23fa3' stroke-width='3'/></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Focal Length Comparison Tool</title>
 <meta name="description" content="A simple and easy to use tool for a visual comparison of the focal length and the angle of view of two camera lenses.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%23111'/><rect x='3' y='6' width='26' height='20' fill='none' stroke='%23007aff' stroke-width='3'/><rect x='10' y='12' width='12' height='8' fill='none' stroke='%23ff9500' stroke-width='3'/></svg>">
 <style>
-* {font-family:Arial; text-align:center;}
-body {margin:0; background:#111;}
-#wrap {--w:min(calc(100vw - 206px), calc((100vh - 6px) * 1.5)); display:flex; justify-content:center; align-items:center; min-height:100vh; padding:3px; box-sizing:border-box;}
-#photo {width:var(--w); aspect-ratio:3/2; flex-shrink:0; display:flex; align-items:center; justify-content:center; background-position:center; overflow:hidden;}
-#frame {margin:0;}
-#photo.mask #frame {box-shadow:0 0 0 100vmax rgba(0,0,0,.6);}
-#panel {width:200px; height:calc(var(--w) / 1.5); box-shadow:0 -3px 0 #fa3;}
-#panel input[type=button] {font-size:14pt; margin:4px;}
-@media (max-width:700px), (orientation:portrait) {
-  #wrap {flex-direction:column; justify-content:flex-start;}
-  #photo {width:100%;}
-  #panel {width:100%; height:auto;}
+:root {
+	--glass: rgba(18, 18, 18, 0.94);
+	--accent: #007aff;
+	--a: #ff9500;
+	--b: #007aff;
+	--error: #ff3b30;
+	--top: max(20px, env(safe-area-inset-top));
+	--right: max(20px, env(safe-area-inset-right));
+	--bottom: max(20px, env(safe-area-inset-bottom));
+	--left: max(20px, env(safe-area-inset-left));
 }
-.color0 {background:#fa3; height:40px;}
-.color1 {background:#38f; height:40px;}
-input[type=range] {width:180px;}
+html, body {
+	margin: 0; height: 100%; overflow: hidden;
+	background: #000; color: #fff;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+body { display: grid; place-items: center; }
+
+/* photo = wider lens, frame = longer lens */
+#photo {
+	position: relative;
+	width: min(100vw, 150vh); width: min(100vw, 150dvh);
+	aspect-ratio: 3 / 2;
+	display: flex; align-items: center; justify-content: center;
+	background-position: center;
+	overflow: hidden;
+}
+/* border drawn above the mask so it never gets dimmed */
+#photo::after { content: ""; position: absolute; inset: 0; z-index: 1; border: 3px var(--line, solid) var(--c); pointer-events: none; }
+#frame { position: relative; outline-offset: -3px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, var(--mask, 0)); transition: box-shadow .2s; }
+#photo.error::after { border: 3px solid var(--error); }
+#photo.error #frame, #photo.error .label { display: none; }
+.label {
+	position: absolute; top: 0; left: 0; z-index: 1;
+	font-size: 11px; font-weight: 800; white-space: nowrap;
+	background: rgba(0, 0, 0, 0.85);
+	padding: 2px 6px; border-radius: 0 0 4px 0;
+}
+#photo > .label { top: 3px; left: 3px; }
+.label::before { content: "— "; color: var(--c); }
+
+#trigger {
+	position: fixed; top: var(--top); right: var(--right); z-index: 20;
+	width: 50px; height: 50px; border-radius: 50%;
+	background: var(--glass); color: #fff; font-size: 24px; cursor: pointer;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(15px);
+}
+#panel {
+	position: fixed; top: calc(var(--top) + 65px); right: var(--right); z-index: 10;
+	width: min(360px, calc(100vw - 40px)); max-height: calc(100dvh - var(--top) - 65px - var(--bottom));
+	box-sizing: border-box; padding: 20px; overflow-y: auto;
+	background: var(--glass); backdrop-filter: blur(25px);
+	border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+	opacity: 0; transform: translateY(-15px) scale(0.96); pointer-events: none;
+	transition: all .25s ease-out;
+	scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+#panel.open { opacity: 1; transform: none; pointer-events: auto; }
+
+.buttons { display: flex; gap: 10px; margin-bottom: 16px; }
+.btn, .btn-icon {
+	border: none; border-radius: 12px; color: #fff; cursor: pointer;
+	font-size: 14px; font-weight: bold; padding: 14px 10px;
+}
+.btn { flex: 1; background: var(--accent); white-space: nowrap; }
+.btn.off { background: rgba(255, 255, 255, 0.1); }
+.btn.focus { background: var(--a); }
+.btn-icon { width: 48px; flex-shrink: 0; font-size: 18px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); }
+.btn:active, .btn-icon:active { transform: scale(0.98); opacity: 0.9; }
+
+.lens { background: rgba(255, 255, 255, 0.05); border-radius: 14px; padding: 12px 14px; }
+.lens + .lens { margin-top: 12px; }
+.lens h3 { margin: 0 0 10px; font-size: 15px; display: flex; justify-content: space-between; }
+.lens h3::before { content: "—"; color: var(--c); font-weight: 900; margin-right: 8px; }
+.lens h3 span { flex: 1; }
+.lens h3 output { font-size: 12px; font-weight: normal; color: rgba(255, 255, 255, 0.6); }
+.row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin: 4px 0; }
+.row input {
+	width: 56px; padding: 6px 8px; border: none; border-radius: 8px; text-align: right;
+	background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit;
+}
+input[type=range] { width: 100%; accent-color: var(--c); margin: 2px 0 6px; }
+.chips { display: flex; gap: 6px; margin: 8px 0; }
+.chips button {
+	flex: 1; padding: 6px 0; border: none; border-radius: 8px; cursor: pointer;
+	background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 13px;
+}
+.chips button.on { background: var(--c); }
+.angle { font-size: 20px; font-weight: bold; text-align: center; }
+.angle::before { content: "Angle of view (H × V)"; display: block; font-size: 11px; font-weight: normal; color: rgba(255, 255, 255, 0.5); }
+.angle.error::before { content: none; }
+.angle.error { color: var(--error); font-size: 14px; }
+
+
+/* phones: photo at the top, panel as a bottom sheet */
+@media (orientation: portrait) and (max-width: 600px) {
+	body { place-items: start center; }
+	#photo { margin-top: 80px; }
+	#panel { top: auto; bottom: 0; right: 0; width: 100%; max-height: 55dvh; border-radius: 20px 20px 0 0; padding-bottom: var(--bottom); }
+}
 </style>
 </head>
 <body>
-<form name=form1 id="wrap">
-<div id="photo"><p id="frame"></p></div>
-<table id="panel" cellpadding=0 cellspacing=0>
-<tr class="color0"><td width=140>Focal length</td><td width=60><input type="text" size=1 oninput="calculate(0)" name="lens0"></td></tr>
-<tr class="color0"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range0"></td></tr>
-<tr class="color0"><td id="crop-label0">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop0"></td></tr>
-<tr class="color0"><td colspan=2><a id="angle0"></a></td></tr>
-<tr class="color1"><td>Focal length</td><td><input type="text" size=1 oninput="calculate(0)" name="lens1"></td></tr>
-<tr class="color1"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range1"></td></tr>
-<tr class="color1"><td id="crop-label1">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop1"></td></tr>
-<tr class="color1"><td colspan=2><a id="angle1"></a></td></tr>
-<tr height=120><td colspan=2><input type="button" value="Create link" onclick="linking()"><br>
-<input type="button" value="Mask: off" onclick="this.value='Mask: '+(photo.classList.toggle('mask')?'on':'off')">
-<input type="button" value="Fullscreen" id="fs" onclick="document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()"></td></tr>
-<tr><td colspan=2></td></tr></table>
+<div id="photo"><span class="label" id="photo-label"></span><p id="frame"><span class="label" id="frame-label"></span></p></div>
+<button id="trigger" title="Settings">⚙️</button>
+
+<form id="panel" onsubmit="return false">
+	<div class="buttons">
+		<button type="button" class="btn" id="fs">Full Screen</button>
+		<button type="button" class="btn" id="mask">Mask: ON</button>
+		<button type="button" class="btn-icon" id="share" title="Copy link">🔗</button>
+	</div>
+	<section class="lens" style="--c: var(--a)">
+		<h3><span>Lens A</span><output id="eq0"></output></h3>
+		<label class="row">Focal length (mm) <input name="lens0" inputmode="decimal"></label>
+		<input type="range" name="range0" min="5" max="135">
+		<label class="row">Crop factor <input name="crop0" inputmode="decimal"></label>
+		<div class="chips" id="chips0"></div>
+		<div class="angle" id="angle0"></div>
+	</section>
+	<section class="lens" style="--c: var(--b)">
+		<h3><span>Lens B</span><output id="eq1"></output></h3>
+		<label class="row">Focal length (mm) <input name="lens1" inputmode="decimal"></label>
+		<input type="range" name="range1" min="5" max="135">
+		<label class="row">Crop factor <input name="crop1" inputmode="decimal"></label>
+		<div class="chips" id="chips1"></div>
+		<div class="angle" id="angle1"></div>
+	</section>
 </form>
+
 <script>
-const form = document.forms.form1.elements;
-const photo = document.getElementById("photo");
-const frame = document.getElementById("frame");
+const $ = id => document.getElementById(id);
+const panel = $("panel"), form = panel.elements;
+const photo = $("photo"), frame = $("frame");
 const images = [5, 15, 45]; // focal lengths (mm) of 5.jpg, 15.jpg, 45.jpg
 const fields = ["lens0", "crop0", "lens1", "crop1"];
 const defaults = [28, 1, 14, 1];
-const colors = ["#fa3", "#38f"];
+const names = ["A", "B"];
+const colors = ["var(--a)", "var(--b)"];
+const crops = [1, 1.5, 1.6, 2, 2.7];
+const masks = [["OFF", 0, "off"], ["ON", 0.45, ""], ["FOCUS", 0.8, "focus"]];
+let maskMode = 1;
 
-if (!document.fullscreenEnabled) document.getElementById("fs").hidden = true;
 images.forEach(n => new Image().src = n + ".jpg"); // preload
 
 // angle of view (degrees) across one side of a 36×24 mm frame
@@ -61,44 +162,78 @@ function hashing() {
 	const values = location.hash ? location.hash.slice(1).split("&") : defaults;
 	fields.forEach((name, i) => form[name].value = values[i] ?? defaults[i]);
 }
-function linking() {
-	location.hash = fields.map(name => form[name].value).join("&");
-}
-function showLens(n, f, crop) {
-	const angle = document.getElementById("angle" + n);
-	const ok = f > 0 && crop > 0;
-	angle.style.color = f >= images[0] ? "#000" : "#f00";
-	angle.innerHTML = ok ? degrees(36, f) + "° × " + degrees(24, f) + "°" : "Error!";
-	document.getElementById("crop-label" + n).innerHTML =
-		ok && crop != 1 ? "Crop factor<br>(" + Math.round(f * 10) / 10 + " mm)" : "Crop factor";
+function setLabel(label, n) {
+	label.style.setProperty("--c", colors[n]);
+	label.textContent = names[n] + " · " + +form["lens" + n].value + " mm";
 }
 function calculate(fromRange) {
-	const f = []; // full-frame equivalent focal lengths
+	const eq = []; // full-frame equivalent focal lengths
 	for (const n of [0, 1]) {
 		if (fromRange) form["lens" + n].value = form["range" + n].value;
 		else form["range" + n].value = form["lens" + n].value;
 		const crop = +form["crop" + n].value;
-		f[n] = form["lens" + n].value * crop;
-		showLens(n, f[n], crop);
+		eq[n] = form["lens" + n].value * crop;
+		const ok = eq[n] >= images[0];
+		$("angle" + n).textContent = ok ? degrees(36, eq[n]) + "° × " + degrees(24, eq[n]) + "°" : "Equivalent focal length must be ≥ 5 mm";
+		$("angle" + n).classList.toggle("error", !ok);
+		$("eq" + n).textContent = ok && crop != 1 ? "≈ " + Math.round(eq[n] * 10) / 10 + " mm full frame" : "";
+		for (const chip of $("chips" + n).children) chip.classList.toggle("on", +chip.textContent === crop);
 	}
-	if (f[0] >= images[0] && f[1] >= images[0]) {
-		// photo shows the wider lens, frame marks the longer one
-		const long = f[0] >= f[1] ? 0 : 1;
-		const wide = Math.min(...f), tele = Math.max(...f);
-		const img = images.findLast(n => n <= wide);
-		frame.style.opacity = 1;
-		frame.style.outline = "3px solid " + colors[long];
-		photo.style.outline = "3px " + (wide == tele ? "dashed " : "solid ") + colors[1 - long];
-		photo.style.backgroundImage = "url(" + img + ".jpg)";
-		photo.style.backgroundSize = wide / img * 100 + "%";
-		frame.style.width = frame.style.height = wide / tele * 100 + "%";
-	} else {
-		photo.style.outline = "3px solid #f00";
-		frame.style.opacity = 0;
-	}
+	const valid = eq.every(v => v >= images[0]);
+	photo.classList.toggle("error", !valid);
+	if (!valid) return;
+	const long = eq[0] >= eq[1] ? 0 : 1, short = 1 - long;
+	const wide = eq[short], tele = eq[long];
+	const img = images.findLast(n => n <= wide);
+	photo.style.setProperty("--c", colors[short]);
+	photo.style.setProperty("--line", wide == tele ? "dashed" : "solid");
+	frame.style.outline = "3px solid " + colors[long];
+	photo.style.backgroundImage = "url(" + img + ".jpg)";
+	photo.style.backgroundSize = wide / img * 100 + "%";
+	frame.style.width = frame.style.height = wide / tele * 100 + "%";
+	setLabel($("photo-label"), short);
+	setLabel($("frame-label"), long);
 }
+
+function togglePanel(open) {
+	panel.classList.toggle("open", open);
+	$("trigger").textContent = panel.classList.contains("open") ? "✕" : "⚙️";
+}
+$("trigger").onclick = () => togglePanel();
+document.addEventListener("click", e => {
+	if (!panel.contains(e.target) && e.target !== $("trigger")) togglePanel(false);
+});
+document.addEventListener("keydown", e => e.key === "Escape" && togglePanel(false));
+
+$("mask").onclick = function () {
+	maskMode = (maskMode + 1) % masks.length;
+	const [label, opacity, style] = masks[maskMode];
+	this.textContent = "Mask: " + label;
+	this.className = "btn " + style;
+	frame.style.setProperty("--mask", opacity);
+};
+$("fs").onclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+if (!document.fullscreenEnabled) $("fs").hidden = true;
+$("share").onclick = function () {
+	location.hash = fields.map(name => form[name].value).join("&");
+	navigator.clipboard?.writeText(location.href).then(() => {
+		this.textContent = "✓";
+		setTimeout(() => this.textContent = "🔗", 1500);
+	}, () => {});
+};
+
+for (const n of [0, 1]) {
+	$("chips" + n).append(...crops.map(c => Object.assign(document.createElement("button"), {
+		type: "button", textContent: c,
+		onclick() { form["crop" + n].value = c; calculate(); }
+	})));
+}
+panel.addEventListener("input", e => calculate(e.target.type === "range"));
+
+frame.style.setProperty("--mask", masks[maskMode][1]);
 hashing();
 calculate();
+togglePanel(innerWidth >= 900);
 </script>
 </body>
 </html>

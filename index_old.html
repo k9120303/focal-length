@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+<title>Focal Length Comparison Tool</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='5' fill='%23111'/><rect x='3' y='6' width='26' height='20' fill='none' stroke='%2338f' stroke-width='3'/><rect x='10' y='12' width='12' height='8' fill='none' stroke='%23fa3' stroke-width='3'/></svg>">
+<meta name="description" content="A simple and easy to use tool for a visual comparison of the focal length and the angle of view of two camera lenses.">
+<style>
+* {font-family:Arial; text-align:center;}
+body {margin:0; background:#111;}
+#wrap {--w:min(calc(100vw - 206px), calc((100vh - 6px) * 1.5)); display:flex; justify-content:center; align-items:center; min-height:100vh; padding:3px; box-sizing:border-box;}
+#photo {width:var(--w); aspect-ratio:3/2; flex-shrink:0; display:flex; align-items:center; justify-content:center; background-position:center; overflow:hidden;}
+#frame {margin:0;}
+#photo.mask #frame {box-shadow:0 0 0 100vmax rgba(0,0,0,.6);}
+#panel {width:200px; height:calc(var(--w) / 1.5); box-shadow:0 -3px 0 #fa3;}
+#panel input[type=button] {font-size:14pt; margin:4px;}
+@media (max-width:700px), (orientation:portrait) {
+  #wrap {flex-direction:column; justify-content:flex-start;}
+  #photo {width:100%;}
+  #panel {width:100%; height:auto;}
+}
+.color0 {background:#fa3; height:40px;}
+.color1 {background:#38f; height:40px;}
+input[type=range] {width:180px;}
+</style>
+</head>
+<body>
+<form name=form1 id="wrap">
+<div id="photo"><p id="frame"></p></div>
+<table id="panel" cellpadding=0 cellspacing=0>
+<tr class="color0"><td width=140>Focal length</td><td width=60><input type="text" size=1 oninput="calculate(0)" name="lens0"></td></tr>
+<tr class="color0"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range0"></td></tr>
+<tr class="color0"><td id="crop-label0">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop0"></td></tr>
+<tr class="color0"><td colspan=2><a id="angle0"></a></td></tr>
+<tr class="color1"><td>Focal length</td><td><input type="text" size=1 oninput="calculate(0)" name="lens1"></td></tr>
+<tr class="color1"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range1"></td></tr>
+<tr class="color1"><td id="crop-label1">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop1"></td></tr>
+<tr class="color1"><td colspan=2><a id="angle1"></a></td></tr>
+<tr height=120><td colspan=2><input type="button" value="Create link" onclick="linking()"><br>
+<input type="button" value="Mask: off" onclick="this.value='Mask: '+(photo.classList.toggle('mask')?'on':'off')">
+<input type="button" value="Fullscreen" id="fs" onclick="document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()"></td></tr>
+<tr><td colspan=2></td></tr></table>
+</form>
+<script>
+const form = document.forms.form1.elements;
+const photo = document.getElementById("photo");
+const frame = document.getElementById("frame");
+const images = [5, 15, 45]; // focal lengths (mm) of 5.jpg, 15.jpg, 45.jpg
+const fields = ["lens0", "crop0", "lens1", "crop1"];
+const defaults = [28, 1, 14, 1];
+const colors = ["#fa3", "#38f"];
+
+if (!document.fullscreenEnabled) document.getElementById("fs").hidden = true;
+images.forEach(n => new Image().src = n + ".jpg"); // preload
+
+// angle of view (degrees) across one side of a 36×24 mm frame
+const degrees = (side, f) => Math.round(Math.atan(side / 2 / f) * 3600 / Math.PI) / 10;
+
+function hashing() {
+	const values = location.hash ? location.hash.slice(1).split("&") : defaults;
+	fields.forEach((name, i) => form[name].value = values[i] ?? defaults[i]);
+}
+function linking() {
+	location.hash = fields.map(name => form[name].value).join("&");
+}
+function showLens(n, f, crop) {
+	const angle = document.getElementById("angle" + n);
+	const ok = f > 0 && crop > 0;
+	angle.style.color = f >= images[0] ? "#000" : "#f00";
+	angle.innerHTML = ok ? degrees(36, f) + "° × " + degrees(24, f) + "°" : "Error!";
+	document.getElementById("crop-label" + n).innerHTML =
+		ok && crop != 1 ? "Crop factor<br>(" + Math.round(f * 10) / 10 + " mm)" : "Crop factor";
+}
+function calculate(fromRange) {
+	const f = []; // full-frame equivalent focal lengths
+	for (const n of [0, 1]) {
+		if (fromRange) form["lens" + n].value = form["range" + n].value;
+		else form["range" + n].value = form["lens" + n].value;
+		const crop = +form["crop" + n].value;
+		f[n] = form["lens" + n].value * crop;
+		showLens(n, f[n], crop);
+	}
+	if (f[0] >= images[0] && f[1] >= images[0]) {
+		// photo shows the wider lens, frame marks the longer one
+		const long = f[0] >= f[1] ? 0 : 1;
+		const wide = Math.min(...f), tele = Math.max(...f);
+		const img = images.findLast(n => n <= wide);
+		frame.style.opacity = 1;
+		frame.style.outline = "3px solid " + colors[long];
+		photo.style.outline = "3px " + (wide == tele ? "dashed " : "solid ") + colors[1 - long];
+		photo.style.backgroundImage = "url(" + img + ".jpg)";
+		photo.style.backgroundSize = wide / img * 100 + "%";
+		frame.style.width = frame.style.height = wide / tele * 100 + "%";
+	} else {
+		photo.style.outline = "3px solid #f00";
+		frame.style.opacity = 0;
+	}
+}
+hashing();
+calculate();
+</script>
+</body>
+</html>
