@@ -3,21 +3,34 @@
 <head>
 <title>Focal Length Comparison Tool</title>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="language" content="EN">
 <meta name="description" content="A simple and easy to use tool for a visual comparison of the focal length and the angle of view of two camera lenses.">
 <style>
 * {font-family:Arial;}
 *:not(#xyz) {text-align:center;}
-#div {position:absolute; left:50%; top:50%; margin:-300px 0 0 -550px;}
+body {margin:0;}
+#wrap {display:flex; justify-content:center; align-items:center; min-height:100vh; padding:3px; box-sizing:border-box;}
+#xyz {width:900px; aspect-ratio:3/2; flex-shrink:0; display:flex; align-items:center; justify-content:center; background-position:center; image-rendering:pixelated;}
+#abc {margin:0;}
+#xyz {overflow:hidden;}
+#xyz.mask #abc {box-shadow:0 0 0 100vmax rgba(0,0,0,.6);}
+#panel input[type=button] {font-size:14pt; margin:4px;}
+#panel {width:200px; height:600px; box-shadow:0 -3px 0 #fa3;}
+@media (max-width:1110px) {
+  #wrap {flex-direction:column; justify-content:flex-start;}
+  #xyz {width:100%; max-width:900px;}
+  #panel {width:100%; max-width:900px; height:auto;}
+}
 .color1 {background-color:#fa3;}
 .color2 {background-color:#38f;}
 input[type=range]{width:180px;}
 </style>
 </head>
 <body bgcolor="#111">
-<center><div id="div"><form name=form1><table cellpadding=0 cellspacing=0><tr>
-<td id="xyz" height=600 width=900 align="center" style="background-position:center; image-rendering:pixelated;"><p id="abc"></p></td>
-<td><table height=600 cellpadding=0 cellspacing=0 style="box-shadow:0 -3px 0 #fa3;">
+<form name=form1 id="wrap">
+<div id="xyz"><p id="abc"></p></div>
+<table id="panel" cellpadding=0 cellspacing=0>
 <tr height=40 class="color1"><td width=140>Focal length</td><td width=60><input type="text" size=1 oninput="calculate(0)" name="lens0"></td></tr>
 <tr height=40 class="color1"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range0"></td></tr>
 <tr height=40 class="color1"><td id="c0">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop0"></td></tr>
@@ -26,11 +39,14 @@ input[type=range]{width:180px;}
 <tr height=40 class="color2"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range1"></td></tr>
 <tr height=40 class="color2"><td id="c1">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop1"></td></tr>
 <tr height=40 class="color2"><td colspan=2><a id="a1"></a></td></tr>
-<tr height=120><td colspan=2><input type="button" value="Create link" onclick="linking()" style="font-size:14pt"></td></tr>
-<tr><td colspan=2></td></tr></table><td/>
-<tr/></table></form></div></center>
+<tr height=120><td colspan=2><input type="button" value="Create link" onclick="linking()"><br>
+<input type="button" value="Mask: off" onclick="this.value='Mask: '+(xyz.classList.toggle('mask')?'on':'off')">
+<input type="button" value="Fullscreen" id="fs" onclick="document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()"></td></tr>
+<tr><td colspan=2></td></tr></table>
+</form>
 <script>
 form=document.forms.form1;
+if(!document.fullscreenEnabled) document.getElementById("fs").hidden=true;
 images=[5, 15, 45];
 def=[28, 1, 14, 1];
 color=["#fa3", "#38f"];
