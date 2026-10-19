@@ -4,135 +4,100 @@
 <title>Focal Length Comparison Tool</title>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="language" content="EN">
 <meta name="description" content="A simple and easy to use tool for a visual comparison of the focal length and the angle of view of two camera lenses.">
 <style>
-* {font-family:Arial;}
-*:not(#xyz) {text-align:center;}
-body {margin:0;}
+* {font-family:Arial; text-align:center;}
+body {margin:0; background:#111;}
 #wrap {--w:min(calc(100vw - 206px), calc((100vh - 6px) * 1.5)); display:flex; justify-content:center; align-items:center; min-height:100vh; padding:3px; box-sizing:border-box;}
-#xyz {width:var(--w); aspect-ratio:3/2; flex-shrink:0; display:flex; align-items:center; justify-content:center; background-position:center;}
-#abc {margin:0;}
-#xyz {overflow:hidden;}
-#xyz.mask #abc {box-shadow:0 0 0 100vmax rgba(0,0,0,.6);}
-#panel input[type=button] {font-size:14pt; margin:4px;}
+#photo {width:var(--w); aspect-ratio:3/2; flex-shrink:0; display:flex; align-items:center; justify-content:center; background-position:center; overflow:hidden;}
+#frame {margin:0;}
+#photo.mask #frame {box-shadow:0 0 0 100vmax rgba(0,0,0,.6);}
 #panel {width:200px; height:calc(var(--w) / 1.5); box-shadow:0 -3px 0 #fa3;}
+#panel input[type=button] {font-size:14pt; margin:4px;}
 @media (max-width:700px), (orientation:portrait) {
   #wrap {flex-direction:column; justify-content:flex-start;}
-  #xyz {width:100%;}
+  #photo {width:100%;}
   #panel {width:100%; height:auto;}
 }
-.color1 {background-color:#fa3;}
-.color2 {background-color:#38f;}
-input[type=range]{width:180px;}
+.color0 {background:#fa3; height:40px;}
+.color1 {background:#38f; height:40px;}
+input[type=range] {width:180px;}
 </style>
 </head>
-<body bgcolor="#111">
+<body>
 <form name=form1 id="wrap">
-<div id="xyz"><p id="abc"></p></div>
+<div id="photo"><p id="frame"></p></div>
 <table id="panel" cellpadding=0 cellspacing=0>
-<tr height=40 class="color1"><td width=140>Focal length</td><td width=60><input type="text" size=1 oninput="calculate(0)" name="lens0"></td></tr>
-<tr height=40 class="color1"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range0"></td></tr>
-<tr height=40 class="color1"><td id="c0">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop0"></td></tr>
-<tr height=40 class="color1"><td colspan=2><a id="a0"></a></td></tr>
-<tr height=40 class="color2"><td>Focal length</td><td><input type="text" size=1 oninput="calculate(0)" name="lens1"></td></tr>
-<tr height=40 class="color2"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range1"></td></tr>
-<tr height=40 class="color2"><td id="c1">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop1"></td></tr>
-<tr height=40 class="color2"><td colspan=2><a id="a1"></a></td></tr>
+<tr class="color0"><td width=140>Focal length</td><td width=60><input type="text" size=1 oninput="calculate(0)" name="lens0"></td></tr>
+<tr class="color0"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range0"></td></tr>
+<tr class="color0"><td id="crop-label0">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop0"></td></tr>
+<tr class="color0"><td colspan=2><a id="angle0"></a></td></tr>
+<tr class="color1"><td>Focal length</td><td><input type="text" size=1 oninput="calculate(0)" name="lens1"></td></tr>
+<tr class="color1"><td colspan=2><input type="range" min=5 max=135 step=1 oninput="calculate(1)" name="range1"></td></tr>
+<tr class="color1"><td id="crop-label1">Crop factor</td><td><input type="text" size=1 oninput="calculate(0)" name="crop1"></td></tr>
+<tr class="color1"><td colspan=2><a id="angle1"></a></td></tr>
 <tr height=120><td colspan=2><input type="button" value="Create link" onclick="linking()"><br>
-<input type="button" value="Mask: off" onclick="this.value='Mask: '+(xyz.classList.toggle('mask')?'on':'off')">
+<input type="button" value="Mask: off" onclick="this.value='Mask: '+(photo.classList.toggle('mask')?'on':'off')">
 <input type="button" value="Fullscreen" id="fs" onclick="document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()"></td></tr>
 <tr><td colspan=2></td></tr></table>
 </form>
 <script>
-form=document.forms.form1;
-if(!document.fullscreenEnabled) document.getElementById("fs").hidden=true;
-images=[5, 15, 45];
-def=[28, 1, 14, 1];
-color=["#fa3", "#38f"];
-qwer=["a0", "a1"];
-rewq=["c0", "c1"];
-document.imagespreload=new Array(images.length);
-for(i=0;i<images.length;i++)
-{	document.imagespreload[i]=new Image;
-	document.imagespreload[i].src=images[i]+".jpg";
+const form = document.forms.form1.elements;
+const photo = document.getElementById("photo");
+const frame = document.getElementById("frame");
+const images = [5, 15, 45]; // focal lengths (mm) of 5.jpg, 15.jpg, 45.jpg
+const fields = ["lens0", "crop0", "lens1", "crop1"];
+const defaults = [28, 1, 14, 1];
+const colors = ["#fa3", "#38f"];
+
+if (!document.fullscreenEnabled) document.getElementById("fs").hidden = true;
+images.forEach(n => new Image().src = n + ".jpg"); // preload
+
+// angle of view (degrees) across one side of a 36×24 mm frame
+const degrees = (side, f) => Math.round(Math.atan(side / 2 / f) * 3600 / Math.PI) / 10;
+
+function hashing() {
+	const values = location.hash ? location.hash.slice(1).split("&") : defaults;
+	fields.forEach((name, i) => form[name].value = values[i] ?? defaults[i]);
 }
-function ascending(a,b)
-{	if(a>b) return 1;
-	if(a<b) return -1;
+function linking() {
+	location.hash = fields.map(name => form[name].value).join("&");
 }
-function lens(n)
-{	if(f[n]>=images[0]) document.getElementById(qwer[n]).style.color="#000";
-	else document.getElementById(qwer[n]).style.color="#f00";
-	if(f[n]>0&&c[n]>0)
-	{	if(c[n]==1) document.getElementById(rewq[n]).innerHTML="Crop factor";
-		else document.getElementById(rewq[n]).innerHTML="Crop factor<br/>("+Math.round(f[n]*10)/10+" mm)";
-		document.getElementById(qwer[n]).innerHTML=Math.round(Math.atan(18/f[n])*3600/Math.PI)/10+"° × "+Math.round(Math.atan(12/f[n])*3600/Math.PI)/10+"°";
-	}else
-	{	document.getElementById(qwer[n]).innerHTML="Error!";
-		document.getElementById(rewq[n]).innerHTML="Crop factor";
+function showLens(n, f, crop) {
+	const angle = document.getElementById("angle" + n);
+	const ok = f > 0 && crop > 0;
+	angle.style.color = f >= images[0] ? "#000" : "#f00";
+	angle.innerHTML = ok ? degrees(36, f) + "° × " + degrees(24, f) + "°" : "Error!";
+	document.getElementById("crop-label" + n).innerHTML =
+		ok && crop != 1 ? "Crop factor<br>(" + Math.round(f * 10) / 10 + " mm)" : "Crop factor";
+}
+function calculate(fromRange) {
+	const f = []; // full-frame equivalent focal lengths
+	for (const n of [0, 1]) {
+		if (fromRange) form["lens" + n].value = form["range" + n].value;
+		else form["range" + n].value = form["lens" + n].value;
+		const crop = +form["crop" + n].value;
+		f[n] = form["lens" + n].value * crop;
+		showLens(n, f[n], crop);
+	}
+	if (f[0] >= images[0] && f[1] >= images[0]) {
+		// photo shows the wider lens, frame marks the longer one
+		const long = f[0] >= f[1] ? 0 : 1;
+		const wide = Math.min(...f), tele = Math.max(...f);
+		const img = images.findLast(n => n <= wide);
+		frame.style.opacity = 1;
+		frame.style.outline = "3px solid " + colors[long];
+		photo.style.outline = "3px " + (wide == tele ? "dashed " : "solid ") + colors[1 - long];
+		photo.style.backgroundImage = "url(" + img + ".jpg)";
+		photo.style.backgroundSize = wide / img * 100 + "%";
+		frame.style.width = frame.style.height = wide / tele * 100 + "%";
+	} else {
+		photo.style.outline = "3px solid #f00";
+		frame.style.opacity = 0;
 	}
 }
-function hashing()
-{	hash=window.location.hash;
-	if(hash!=""){
-		tmp=new Array();
-		tmp=(hash.substr(1)).split("&");
-		form.elements.lens0.value=tmp[0];
-		form.elements.crop0.value=tmp[1];
-		form.elements.lens1.value=tmp[2];
-		form.elements.crop1.value=tmp[3];
-	}else{
-		form.elements.lens0.value=def[0];
-		form.elements.crop0.value=def[1];
-		form.elements.lens1.value=def[2];
-		form.elements.crop1.value=def[3];
-	}
-}hashing();
-function linking() {window.location.hash=form.elements.lens0.value+"&"+form.elements.crop0.value+"&"+form.elements.lens1.value+"&"+form.elements.crop1.value;}
-function calculate(range){
-	if(range)
-	{	form.elements.lens0.value=form.elements.range0.value;
-		form.elements.lens1.value=form.elements.range1.value;
-	}else
-	{	form.elements.range0.value=form.elements.lens0.value;
-		form.elements.range1.value=form.elements.lens1.value;
-	}
-	f=[+form.elements.lens0.value, +form.elements.lens1.value];
-	c=[+form.elements.crop0.value, +form.elements.crop1.value];
-	f[0]=f[0]*c[0];
-	f[1]=f[1]*c[1];
-	lens(0); lens(1);
-	if(f[0]>=images[0]&&f[1]>=images[0])
-	{	document.getElementById("abc").style.opacity=1;
-		if(f[0]>f[1])
-		{	document.getElementById("abc").style.outline="3px solid "+color[0];
-			document.getElementById("xyz").style.outline="3px solid "+color[1];
-		}
-		else
-		{	if(f[0]<f[1])
-			{	document.getElementById("abc").style.outline="3px solid "+color[1];
-				document.getElementById("xyz").style.outline="3px solid "+color[0];
-			}
-			else
-			{	document.getElementById("abc").style.outline="3px solid "+color[0];
-				document.getElementById("xyz").style.outline="3px dashed "+color[1];
-			}
-		}
-		f.sort(ascending);
-		for(i=images.length-1;i>=0;i--) if(f[0]>=images[i])
-		{	document.getElementById("xyz").style.backgroundImage="url("+images[i]+".jpg)";
-			document.getElementById("xyz").style.backgroundSize=f[0]/images[i]*100+"%";
-			break;
-		}
-		y=f[0]/f[1]*100;
-		document.getElementById("abc").style.width=y+"%";
-		document.getElementById("abc").style.height=y+"%";
-	}else
-	{	document.getElementById("xyz").style.outline="3px solid #f00";
-		document.getElementById("abc").style.opacity=0;
-	}
-}calculate();
+hashing();
+calculate();
 </script>
 </body>
 </html>
